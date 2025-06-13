@@ -2,7 +2,7 @@
 
 一个简洁优雅的安卓备忘录应用，支持文本记录、图片附件和日期管理。
 
-![Screenshot_20250613_222152](.\assets\Screenshot.png)
+![Screenshot_20250613_222152](./assets/Screenshot.png)
 
 ## 功能特性
 
