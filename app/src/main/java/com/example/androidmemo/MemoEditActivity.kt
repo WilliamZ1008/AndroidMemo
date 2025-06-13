@@ -18,10 +18,12 @@ import java.util.*
 
 class MemoEditActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMemoEditBinding
-    private lateinit var database: AppDatabase
-    private var selectedDate: Date = Date()
+    private val db by lazy { AppDatabase.getInstance(this) }
     private var selectedImageUri: Uri? = null
-    private var memoId: Long = -1
+    private var memoId: Long? = null
+    private var selectedDate: Date = Date()
+
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     private val imagePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -29,10 +31,7 @@ class MemoEditActivity : AppCompatActivity() {
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
                 selectedImageUri = uri
-                binding.ivSelectedImage.apply {
-                    setImageURI(uri)
-                    visibility = android.view.View.VISIBLE
-                }
+                binding.ivImage.setImageURI(uri)
             }
         }
     }
@@ -42,18 +41,12 @@ class MemoEditActivity : AppCompatActivity() {
         binding = ActivityMemoEditBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        database = AppDatabase.getDatabase(this)
-        memoId = intent.getLongExtra("memoId", -1)
+        memoId = intent.getLongExtra("memo_id", -1).takeIf { it != -1L }
 
         setupDatePicker()
         setupImagePicker()
         setupSaveButton()
-
-        if (memoId != -1L) {
-            loadMemo()
-        } else {
-            updateDateDisplay()
-        }
+        loadMemoIfExists()
     }
 
     private fun setupDatePicker() {
@@ -71,6 +64,7 @@ class MemoEditActivity : AppCompatActivity() {
                 calendar.get(Calendar.DAY_OF_MONTH)
             ).show()
         }
+        updateDateDisplay()
     }
 
     private fun setupImagePicker() {
@@ -81,7 +75,7 @@ class MemoEditActivity : AppCompatActivity() {
     }
 
     private fun setupSaveButton() {
-        binding.btnSave.setOnClickListener {
+        binding.fabSave.setOnClickListener {
             val title = binding.etTitle.text.toString()
             val content = binding.etContent.text.toString()
 
@@ -90,41 +84,38 @@ class MemoEditActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            val memo = Memo(
+                id = memoId ?: 0,
+                title = title,
+                content = content,
+                date = selectedDate,
+                imagePath = selectedImageUri?.toString()
+            )
+
             lifecycleScope.launch {
-                val memo = Memo(
-                    id = if (memoId == -1L) 0 else memoId,
-                    title = title,
-                    content = content,
-                    date = selectedDate,
-                    imagePath = selectedImageUri?.toString()
-                )
-
-                if (memoId == -1L) {
-                    database.memoDao().insert(memo)
+                if (memoId == null) {
+                    db.memoDao().insert(memo)
                 } else {
-                    database.memoDao().update(memo)
+                    db.memoDao().update(memo)
                 }
-
-                Toast.makeText(this@MemoEditActivity, "保存成功", Toast.LENGTH_SHORT).show()
                 finish()
             }
         }
     }
 
-    private fun loadMemo() {
-        lifecycleScope.launch {
-            val memo = database.memoDao().getMemoById(memoId)
-            memo?.let {
-                binding.etTitle.setText(it.title)
-                binding.etContent.setText(it.content)
-                selectedDate = it.date
-                updateDateDisplay()
+    private fun loadMemoIfExists() {
+        memoId?.let { id ->
+            lifecycleScope.launch {
+                val memo = db.memoDao().getById(id)
+                memo?.let {
+                    binding.etTitle.setText(it.title)
+                    binding.etContent.setText(it.content)
+                    selectedDate = it.date
+                    updateDateDisplay()
 
-                it.imagePath?.let { path ->
-                    selectedImageUri = Uri.parse(path)
-                    binding.ivSelectedImage.apply {
-                        setImageURI(selectedImageUri)
-                        visibility = android.view.View.VISIBLE
+                    it.imagePath?.let { path ->
+                        selectedImageUri = Uri.parse(path)
+                        binding.ivImage.setImageURI(selectedImageUri)
                     }
                 }
             }
@@ -132,7 +123,6 @@ class MemoEditActivity : AppCompatActivity() {
     }
 
     private fun updateDateDisplay() {
-        binding.tvDate.text = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            .format(selectedDate)
+        binding.btnDate.text = dateFormat.format(selectedDate)
     }
 } 

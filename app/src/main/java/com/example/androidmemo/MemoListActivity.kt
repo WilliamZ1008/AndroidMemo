@@ -15,40 +15,32 @@ import kotlinx.coroutines.launch
 
 class MemoListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMemoListBinding
-    private lateinit var adapter: MemoAdapter
-    private lateinit var database: AppDatabase
+    private val db by lazy { AppDatabase.getInstance(this) }
+    private val adapter = MemoAdapter { memo ->
+        val intent = Intent(this, MemoEditActivity::class.java).apply {
+            putExtra("memo_id", memo.id)
+        }
+        startActivity(intent)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMemoListBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        database = AppDatabase.getDatabase(this)
         setupRecyclerView()
         setupSearchView()
-        setupFab()
+        setupAddButton()
+        observeMemos()
+    }
 
-        // 观察备忘录列表变化
-        database.memoDao().getAllMemos().observe(this) { memos ->
-            adapter.submitList(memos)
-        }
+    override fun onResume() {
+        super.onResume()
+        observeMemos()
     }
 
     private fun setupRecyclerView() {
-        adapter = MemoAdapter(
-            onItemClick = { memo ->
-                startActivity(
-                    Intent(this, MemoEditActivity::class.java).apply {
-                        putExtra("memoId", memo.id)
-                    }
-                )
-            },
-            onItemLongClick = { memo ->
-                showDeleteDialog(memo)
-            }
-        )
-
-        binding.rvMemos.apply {
+        binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(this@MemoListActivity)
             adapter = this@MemoListActivity.adapter
         }
@@ -57,27 +49,36 @@ class MemoListActivity : AppCompatActivity() {
     private fun setupSearchView() {
         binding.searchView.setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
-                return false
+                searchMemos(query)
+                return true
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                if (newText.isNullOrBlank()) {
-                    database.memoDao().getAllMemos().observe(this@MemoListActivity) { memos ->
-                        adapter.submitList(memos)
-                    }
-                } else {
-                    database.memoDao().searchMemos(newText).observe(this@MemoListActivity) { memos ->
-                        adapter.submitList(memos)
-                    }
-                }
+                searchMemos(newText)
                 return true
             }
         })
     }
 
-    private fun setupFab() {
-        binding.fabAddMemo.setOnClickListener {
+    private fun setupAddButton() {
+        binding.fabAdd.setOnClickListener {
             startActivity(Intent(this, MemoEditActivity::class.java))
+        }
+    }
+
+    private fun observeMemos() {
+        db.memoDao().getAll().observe(this) { memos ->
+            adapter.submitList(memos)
+        }
+    }
+
+    private fun searchMemos(query: String?) {
+        if (query.isNullOrBlank()) {
+            observeMemos()
+        } else {
+            db.memoDao().search("%$query%").observe(this) { memos ->
+                adapter.submitList(memos)
+            }
         }
     }
 
@@ -87,7 +88,7 @@ class MemoListActivity : AppCompatActivity() {
             .setMessage("确定要删除这条备忘录吗？")
             .setPositiveButton("确定") { _, _ ->
                 lifecycleScope.launch {
-                    database.memoDao().delete(memo)
+                    db.memoDao().delete(memo)
                     Toast.makeText(this@MemoListActivity, "删除成功", Toast.LENGTH_SHORT).show()
                 }
             }

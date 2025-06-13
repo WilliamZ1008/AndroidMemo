@@ -11,8 +11,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MemoAdapter(
-    private val onItemClick: (Memo) -> Unit,
-    private val onItemLongClick: (Memo) -> Unit
+    private val onItemClick: (Memo) -> Unit
 ) : ListAdapter<Memo, MemoAdapter.MemoViewHolder>(MemoDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MemoViewHolder {
@@ -39,21 +38,11 @@ class MemoAdapter(
                     onItemClick(getItem(position))
                 }
             }
-
-            binding.root.setOnLongClickListener {
-                val position = bindingAdapterPosition
-                if (position != RecyclerView.NO_POSITION) {
-                    onItemLongClick(getItem(position))
-                    true
-                } else {
-                    false
-                }
-            }
         }
 
         fun bind(memo: Memo) {
             binding.tvTitle.text = memo.title
-            binding.tvDate.text = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            binding.tvDate.text = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 .format(memo.date)
         }
     }

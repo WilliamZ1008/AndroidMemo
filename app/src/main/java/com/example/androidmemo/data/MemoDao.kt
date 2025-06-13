@@ -6,20 +6,20 @@ import androidx.room.*
 @Dao
 interface MemoDao {
     @Query("SELECT * FROM memos ORDER BY date DESC")
-    fun getAllMemos(): LiveData<List<Memo>>
+    fun getAll(): LiveData<List<Memo>>
 
-    @Query("SELECT * FROM memos WHERE title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%' ORDER BY date DESC")
-    fun searchMemos(query: String): LiveData<List<Memo>>
+    @Query("SELECT * FROM memos WHERE id = :id")
+    suspend fun getById(id: Long): Memo?
 
-    @Insert
-    suspend fun insert(memo: Memo): Long
+    @Query("SELECT * FROM memos WHERE title LIKE :query OR content LIKE :query ORDER BY date DESC")
+    fun search(query: String): LiveData<List<Memo>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(memo: Memo)
 
     @Update
     suspend fun update(memo: Memo)
 
     @Delete
     suspend fun delete(memo: Memo)
-
-    @Query("SELECT * FROM memos WHERE id = :id")
-    suspend fun getMemoById(id: Long): Memo?
 } 
